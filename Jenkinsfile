@@ -4,18 +4,16 @@ pipeline {
     environment {
         IMAGE_NAME = "nodejs-jenkins-demo"
         IMAGE_TAG  = "latest"
-        DOCKER_CREDENTIALS = 'dockerhub-creds'  // Jenkins credential ID for Docker Hub
-        GIT_CREDENTIALS    = 'github-creds'     // Jenkins credential ID for GitHub
+        DOCKER_CREDENTIALS = 'dockerhub-creds'  // Optional: Jenkins credential ID for Docker Hub
     }
 
     stages {
 
         stage('Checkout Code') {
             steps {
-                echo "🔹 Checking out code from private GitHub repository..."
+                echo "🔹 Checking out code from public GitHub repository..."
                 git branch: 'main',
-                    url: 'https://github.com/RiturajChaudhary/CICD.git',
-                    credentialsId: "${GIT_CREDENTIALS}"
+                    url: 'https://github.com/RiturajChaudhary/CICD.git'
             }
         }
 
