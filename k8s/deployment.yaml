@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: nodejs
-        image: your-dockerhub-username/nodejs-jenkins-demo:latest
+        image: riturajchaudhary/nodejs-jenkins-demo:latest
         ports:
         - containerPort: 3000
 ---
@@ -29,3 +29,4 @@ spec:
   ports:
   - port: 3000
     targetPort: 3000
+    # nodePort: 30080  # optional

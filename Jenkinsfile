@@ -7,7 +7,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/<your-username>/nodejs-jenkins-demo.git'
+                git branch: 'main', url: 'https://github.com/RiturajChaudhary/CICD.git'
             }
         }
         stage('Build Docker Image') {
@@ -20,7 +20,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
                     usernameVariable: 'USERNAME',
                     passwordVariable: 'PASSWORD')]) {
-                        sh "docker login -u $USERNAME -p $PASSWORD"
+                        sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin"
                         sh "docker tag $IMAGE_NAME:$IMAGE_TAG $USERNAME/$IMAGE_NAME:$IMAGE_TAG"
                         sh "docker push $USERNAME/$IMAGE_NAME:$IMAGE_TAG"
                 }
