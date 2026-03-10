@@ -1,26 +1,39 @@
 pipeline {
-    agent { kubernetes { label 'buildah-agent' defaultContainer 'buildah' } }
+    agent {
+        kubernetes {
+            label 'docker-agent'
+            defaultContainer 'docker'
+        }
+    }
 
     environment {
         IMAGE_NAME = "nodejs-jenkins-demo"
         IMAGE_TAG  = "${env.BUILD_NUMBER}"
-        DOCKER_USER = "your-dockerhub-username"
-        DOCKER_PASS = credentials('dockerhub-creds')
+        DOCKER_CREDENTIALS = 'dockerhub-creds'
         KUBE_CONFIG = 'kubeconfig-file'
     }
 
     stages {
         stage('Checkout') {
-            steps { git branch: 'main', url: 'https://github.com/RiturajChaudhary/CICD.git' }
+            steps {
+                git branch: 'main', url: 'https://github.com/RiturajChaudhary/CICD.git'
+            }
         }
 
         stage('Build & Push') {
             steps {
-                sh '''
-                   buildah bud -t $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG .
-                   echo $DOCKER_PASS | buildah login -u $DOCKER_USER --password-stdin docker.io
-                   buildah push $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG
-                '''
+                container('docker') {
+                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS}", 
+                        usernameVariable: 'DOCKER_USER', 
+                        passwordVariable: 'DOCKER_PASS')]) {
+                        sh '''
+                           docker build -t $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG .
+                           echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                           docker push $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG
+                           docker logout
+                        '''
+                    }
+                }
             }
         }
 
