@@ -1,19 +1,15 @@
 pipeline {
     agent {
         kubernetes {
-            inheritFrom 'default' // optional: use default pod template
             yaml """
 apiVersion: v1
 kind: Pod
-metadata:
-  labels:
-    some-label: docker-agent
 spec:
   containers:
   - name: jnlp
     image: jenkins/inbound-agent:latest
-    args: ['\${computer.jnlpmac}', '\${computer.name}']
-    tty: true
+    args: ['\\\${computer.jnlpmac}', '\\\${computer.name}']
+
   - name: docker
     image: docker:24.0.6-dind
     securityContext:
@@ -22,39 +18,56 @@ spec:
       - dockerd-entrypoint.sh
     tty: true
     volumeMounts:
-      - name: docker-graph-storage
+      - name: docker-storage
         mountPath: /var/lib/docker
+
+  - name: kubectl
+    image: bitnami/kubectl:latest
+    command:
+      - cat
+    tty: true
+
   volumes:
-    - name: docker-graph-storage
-      emptyDir: {}
+  - name: docker-storage
+    emptyDir: {}
 """
         }
     }
 
     environment {
         IMAGE_NAME = "nodejs-jenkins-demo"
-        IMAGE_TAG  = "${env.BUILD_NUMBER}"
-        DOCKER_CREDENTIALS = 'dockerhub-creds'
-        KUBE_CONFIG = 'kubeconfig-file'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        DOCKER_USER = "rituraj4164"
+        DOCKER_CREDS = "dockerhub-creds"
+        KUBE_CONFIG = "kubeconfig-file"
     }
 
     stages {
-        stage('Checkout') {
+
+        stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/RiturajChaudhary/CICD.git'
             }
         }
 
-        stage('Build & Push Docker Image') {
+        stage('Build Docker Image') {
             steps {
                 container('docker') {
-                    withCredentials([usernamePassword(
-                        credentialsId: "${DOCKER_CREDENTIALS}",
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
+                    sh '''
+                    docker build -t $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG .
+                    '''
+                }
+            }
+        }
+
+        stage('Push Image to DockerHub') {
+            steps {
+                container('docker') {
+                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDS,
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS')]) {
+
                         sh '''
-                        docker build -t $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG .
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
                         docker push $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG
                         docker logout
@@ -66,15 +79,30 @@ spec:
 
         stage('Deploy to Kubernetes') {
             steps {
-                withCredentials([file(credentialsId: KUBE_CONFIG, variable: 'KUBECONFIG')]) {
-                    sh '''
-                    export KUBECONFIG=$KUBECONFIG
-                    kubectl set image deployment/static-web-deployment \
+                container('kubectl') {
+                    withCredentials([file(credentialsId: KUBE_CONFIG, variable: 'KUBECONFIG')]) {
+
+                        sh '''
+                        export KUBECONFIG=$KUBECONFIG
+
+                        kubectl set image deployment/static-web-deployment \
                         nodejs-app=$DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG
-                    kubectl rollout status deployment/static-web-deployment
-                    '''
+
+                        kubectl rollout status deployment/static-web-deployment
+                        '''
+                    }
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ CI/CD Pipeline completed successfully!"
+        }
+
+        failure {
+            echo "❌ Pipeline failed. Check logs."
         }
     }
 }
