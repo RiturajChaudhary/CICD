@@ -1,71 +1,56 @@
 pipeline {
+
     agent {
         kubernetes {
-            label 'docker-dind-agent'
-            defaultContainer 'jnlp'
-            yamlFile 'jenkins-dind-agent.yaml'  // use the YAML you just created
+            label 'buildah-agent'
         }
     }
 
     environment {
-        IMAGE_NAME = "nodejs-jenkins-demo"
-        IMAGE_TAG = "${BUILD_NUMBER}"
-        DOCKER_USER = "rituraj4164"
-        DOCKER_CREDS = "dockerhub-creds"
-        KUBE_CONFIG = "kubeconfig-file"
+        IMAGE = "rituraj4164/buildah-demo"
+        TAG = "${BUILD_NUMBER}"
     }
 
     stages {
-        stage('Checkout Code') {
+
+        stage('Clone Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/RiturajChaudhary/CICD.git'
+                git 'https://github.com/RiturajChaudhary/CICD.git'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Image') {
             steps {
-                container('docker') {
-                    sh 'docker info'
-                    sh 'docker build -t $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG .'
-                    sh 'docker images'
+                container('buildah') {
+                    sh '''
+                    buildah bud -t $IMAGE:$TAG .
+                    '''
                 }
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Push Image') {
             steps {
-                container('docker') {
-                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDS,
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS')]) {
-                        sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG
-                        docker logout
-                        '''
-                    }
+                container('buildah') {
+                    sh '''
+                    buildah login -u rituraj4164 -p YOUR_PASSWORD docker.io
+                    buildah push $IMAGE:$TAG
+                    '''
                 }
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Deploy') {
             steps {
                 container('kubectl') {
-                    withCredentials([file(credentialsId: KUBE_CONFIG, variable: 'KUBECONFIG')]) {
-                        sh '''
-                        export KUBECONFIG=$KUBECONFIG
-                        kubectl set image deployment/static-web-deployment \
-                        nodejs-app=$DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG
-                        kubectl rollout status deployment/static-web-deployment
-                        '''
-                    }
+                    sh '''
+                    kubectl set image deployment/buildah-app buildah-app=$IMAGE:$TAG
+                    kubectl rollout status deployment/buildah-app
+                    '''
                 }
             }
         }
+
     }
 
-    post {
-        success { echo "✅ Pipeline completed successfully!" }
-        failure { echo "❌ Pipeline failed. Check logs." }
-    }
 }
