@@ -1,6 +1,8 @@
 pipeline {
     agent {
         kubernetes {
+            label 'docker-kube-agent'
+            defaultContainer 'jnlp'
             yaml """
 apiVersion: v1
 kind: Pod
@@ -8,7 +10,7 @@ spec:
   containers:
   - name: jnlp
     image: jenkins/inbound-agent:latest
-    args: ['\\\${computer.jnlpmac}', '\\\${computer.name}']
+    args: ['\${computer.jnlpmac}', '\${computer.name}']
 
   - name: docker
     image: docker:24.0.6-dind
@@ -18,8 +20,8 @@ spec:
       - dockerd-entrypoint.sh
     tty: true
     volumeMounts:
-      - name: docker-storage
-        mountPath: /var/lib/docker
+      - name: docker-sock
+        mountPath: /var/run/docker.sock
 
   - name: kubectl
     image: bitnami/kubectl:latest
@@ -28,8 +30,9 @@ spec:
     tty: true
 
   volumes:
-  - name: docker-storage
-    emptyDir: {}
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
 """
         }
     }
@@ -64,8 +67,8 @@ spec:
             steps {
                 container('docker') {
                     withCredentials([usernamePassword(credentialsId: DOCKER_CREDS,
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS')]) {
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS')]) {
 
                         sh '''
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
