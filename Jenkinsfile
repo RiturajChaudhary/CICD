@@ -1,7 +1,7 @@
 pipeline {
     agent {
         kubernetes {
-            label 'docker-kube-agent'
+            label 'docker-dind-agent'
             defaultContainer 'jnlp'
             yaml """
 apiVersion: v1
@@ -16,23 +16,21 @@ spec:
     image: docker:24.0.6-dind
     securityContext:
       privileged: true
+    env:
+      - name: DOCKER_TLS_CERTDIR
+        value: ""
     command:
       - dockerd-entrypoint.sh
+    args:
+      - --host=tcp://0.0.0.0:2375
+      - --host=unix:///var/run/docker.sock
     tty: true
-    volumeMounts:
-      - name: docker-sock
-        mountPath: /var/run/docker.sock
 
   - name: kubectl
     image: bitnami/kubectl:latest
     command:
       - cat
     tty: true
-
-  volumes:
-  - name: docker-sock
-    hostPath:
-      path: /var/run/docker.sock
 """
         }
     }
@@ -46,7 +44,6 @@ spec:
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/RiturajChaudhary/CICD.git'
@@ -56,9 +53,9 @@ spec:
         stage('Build Docker Image') {
             steps {
                 container('docker') {
-                    sh '''
-                    docker build -t $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG .
-                    '''
+                    sh 'docker info'
+                    sh 'docker build -t $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG .'
+                    sh 'docker images'
                 }
             }
         }
@@ -69,7 +66,6 @@ spec:
                     withCredentials([usernamePassword(credentialsId: DOCKER_CREDS,
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS')]) {
-
                         sh '''
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
                         docker push $DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG
@@ -84,13 +80,10 @@ spec:
             steps {
                 container('kubectl') {
                     withCredentials([file(credentialsId: KUBE_CONFIG, variable: 'KUBECONFIG')]) {
-
                         sh '''
                         export KUBECONFIG=$KUBECONFIG
-
                         kubectl set image deployment/static-web-deployment \
                         nodejs-app=$DOCKER_USER/$IMAGE_NAME:$IMAGE_TAG
-
                         kubectl rollout status deployment/static-web-deployment
                         '''
                     }
@@ -100,12 +93,7 @@ spec:
     }
 
     post {
-        success {
-            echo "✅ CI/CD Pipeline completed successfully!"
-        }
-
-        failure {
-            echo "❌ Pipeline failed. Check logs."
-        }
+        success { echo "✅ CI/CD Pipeline completed successfully!" }
+        failure { echo "❌ Pipeline failed. Check logs." }
     }
 }
