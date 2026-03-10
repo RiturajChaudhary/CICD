@@ -1,19 +1,19 @@
 pipeline {
-
     agent {
         kubernetes {
-            label 'buildah-agent'
+            label 'buildah'            
+            defaultContainer 'buildah'
         }
     }
 
     environment {
-        IMAGE = "rituraj4164/buildah-demo"
-        TAG = "${BUILD_NUMBER}"
+        IMAGE_NAME = "rituraj4164/buildah-demo"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        DOCKER_CREDS = "dockerhub-creds"
     }
 
     stages {
-
-        stage('Clone Code') {
+        stage('Checkout') {
             steps {
                 git 'https://github.com/RiturajChaudhary/CICD.git'
             }
@@ -21,36 +21,23 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                container('buildah') {
-                    sh '''
-                    buildah bud -t $IMAGE:$TAG .
-                    '''
-                }
+                sh "buildah bud -t $IMAGE_NAME:$IMAGE_TAG ."
             }
         }
 
         stage('Push Image') {
             steps {
-                container('buildah') {
-                    sh '''
-                    buildah login -u rituraj4164 -p YOUR_PASSWORD docker.io
-                    buildah push $IMAGE:$TAG
-                    '''
+                withCredentials([usernamePassword(credentialsId: DOCKER_CREDS, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh "buildah login -u $DOCKER_USER -p $DOCKER_PASS docker.io"
+                    sh "buildah push $IMAGE_NAME:$IMAGE_TAG"
                 }
             }
         }
 
         stage('Deploy') {
             steps {
-                container('kubectl') {
-                    sh '''
-                    kubectl set image deployment/buildah-app buildah-app=$IMAGE:$TAG
-                    kubectl rollout status deployment/buildah-app
-                    '''
-                }
+                sh "kubectl set image deployment/buildah-app buildah-app=$IMAGE_NAME:$IMAGE_TAG"
             }
         }
-
     }
-
 }
