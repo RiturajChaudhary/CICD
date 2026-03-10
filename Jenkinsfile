@@ -3,35 +3,7 @@ pipeline {
         kubernetes {
             label 'docker-dind-agent'
             defaultContainer 'jnlp'
-            yaml """
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - name: jnlp
-    image: jenkins/inbound-agent:latest
-    args: ['\${computer.jnlpmac}', '\${computer.name}']
-
-  - name: docker
-    image: docker:24.0.6-dind
-    securityContext:
-      privileged: true
-    env:
-      - name: DOCKER_TLS_CERTDIR
-        value: ""
-    command:
-      - dockerd-entrypoint.sh
-    args:
-      - --host=tcp://0.0.0.0:2375
-      - --host=unix:///var/run/docker.sock
-    tty: true
-
-  - name: kubectl
-    image: bitnami/kubectl:latest
-    command:
-      - cat
-    tty: true
-"""
+            yamlFile 'jenkins-dind-agent.yaml'  // use the YAML you just created
         }
     }
 
@@ -60,7 +32,7 @@ spec:
             }
         }
 
-        stage('Push Image to DockerHub') {
+        stage('Push Docker Image') {
             steps {
                 container('docker') {
                     withCredentials([usernamePassword(credentialsId: DOCKER_CREDS,
@@ -93,7 +65,7 @@ spec:
     }
 
     post {
-        success { echo "✅ CI/CD Pipeline completed successfully!" }
+        success { echo "✅ Pipeline completed successfully!" }
         failure { echo "❌ Pipeline failed. Check logs." }
     }
 }
