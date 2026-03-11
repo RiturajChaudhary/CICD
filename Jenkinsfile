@@ -1,6 +1,5 @@
-
 pipeline {
-    agent any   // Runs on any available Jenkins agent
+    agent any
 
     environment {
         IMAGE_NAME = "rituraj4164/buildah-demo"
@@ -10,15 +9,21 @@ pipeline {
 
     stages {
 
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
         stage('Checkout') {
             steps {
-                git 'https://github.com/RiturajChaudhary/CICD.git'
+                git branch: 'main', url: 'https://github.com/RiturajChaudhary/CICD.git'
             }
         }
 
         stage('Build Image') {
             steps {
-                sh "buildah bud -t $IMAGE_NAME:$IMAGE_TAG ."
+                sh "buildah bud --layers -t $IMAGE_NAME:$IMAGE_TAG ."
             }
         }
 
@@ -34,19 +39,13 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh """
-                    # Replace image in deployment YAML
-                    sed -i 's|rituraj4164/buildah-demo:latest|$IMAGE_NAME:$IMAGE_TAG|' k8s/deployment.yaml
-
-                    # Apply deployment
+                    sed -i "s|\\\${IMAGE_TAG}|$IMAGE_TAG|" k8s/deployment.yaml
                     kubectl apply -f k8s/deployment.yaml -n jenkins
-
-                    # Update image explicitly for rollout
                     kubectl set image deployment/buildah-app buildah-app=$IMAGE_NAME:$IMAGE_TAG -n jenkins
                     kubectl rollout status deployment/buildah-app -n jenkins
                 """
             }
         }
-
     }
 
     post {
