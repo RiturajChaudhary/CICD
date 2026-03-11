@@ -30,6 +30,7 @@ pipeline {
         IMAGE_TAG       = "${env.BUILD_NUMBER}"
         DEPLOYMENT_NAME = "${env.JOB_NAME.toLowerCase()}"
         CONTAINER_NAME  = "${env.JOB_NAME.toLowerCase()}"
+        SERVICE_NAME    = "${env.JOB_NAME.toLowerCase()}-service"
     }
     stages {
         stage('Checkout') {
@@ -63,16 +64,10 @@ pipeline {
                         sh '''
                             IMAGE=docker.io/$USER/${JOB_NAME,,}:$IMAGE_TAG
 
-                            # Deploy
-                            if kubectl get deployment $DEPLOYMENT_NAME > /dev/null 2>&1; then
-                                kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=$IMAGE
-                            else
-                                kubectl apply -f k8s/deployment.yaml
-                            fi
+                            kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=$IMAGE
 
-                            # Service
                             if kubectl get service $SERVICE_NAME > /dev/null 2>&1; then
-                                echo "Service $SERVICE_NAME already exists, skipping..."
+                                echo "Service already exists, skipping..."
                             else
                                 kubectl expose deployment $DEPLOYMENT_NAME \
                                     --name=$SERVICE_NAME \
