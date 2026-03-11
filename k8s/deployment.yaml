@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
       - name: nodejs
-        image: riturajchaudhary/nodejs-jenkins-demo:latest
+        image: riturajchaudhary/cicd:13
         ports:
         - containerPort: 3000
