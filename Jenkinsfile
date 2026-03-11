@@ -28,9 +28,9 @@ pipeline {
     environment {
         DOCKER_CREDS    = 'dockerhub-creds'
         IMAGE_TAG       = "${env.BUILD_NUMBER}"
-        DEPLOYMENT_NAME = "${env.JOB_NAME.toLowerCase()}"
-        CONTAINER_NAME  = "${env.JOB_NAME.toLowerCase()}"
-        SERVICE_NAME    = "${env.JOB_NAME.toLowerCase()}-service"
+        NAMESPACE       = 'jenkins'
+        DEPLOYMENT_NAME = 'nodejs-deployment'
+        CONTAINER_NAME  = 'nodejs'
     }
     stages {
         stage('Checkout') {
@@ -64,16 +64,23 @@ pipeline {
                         sh '''
                             IMAGE=docker.io/$USER/${JOB_NAME,,}:$IMAGE_TAG
 
-                            kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=$IMAGE
-
-                            if kubectl get service $SERVICE_NAME > /dev/null 2>&1; then
-                                echo "Service already exists, skipping..."
+                            if kubectl get deployment $DEPLOYMENT_NAME -n $NAMESPACE > /dev/null 2>&1; then
+                                echo "✅ Deployment exists — updating image to $IMAGE"
+                                kubectl set image deployment/$DEPLOYMENT_NAME \
+                                    $CONTAINER_NAME=$IMAGE \
+                                    -n $NAMESPACE
                             else
-                                kubectl expose deployment $DEPLOYMENT_NAME \
-                                    --name=$SERVICE_NAME \
-                                    --type=NodePort \
-                                    --port=3000 \
-                                    --target-port=3000
+                                echo "🚀 First run — creating deployment with image $IMAGE"
+                                sed "s|riturajchaudhary/cicd:latest|$IMAGE|g" k8s/deployment.yaml \
+                                    | kubectl apply -f - -n $NAMESPACE
+                            fi
+
+                            if kubectl rollout status deployment/$DEPLOYMENT_NAME -n $NAMESPACE --timeout=120s; then
+                                echo "✅ Rollout successful — Build $IMAGE_TAG is live"
+                            else
+                                echo "❌ Rollout failed — rolling back to previous version"
+                                kubectl rollout undo deployment/$DEPLOYMENT_NAME -n $NAMESPACE
+                                exit 1
                             fi
                         '''
                     }
