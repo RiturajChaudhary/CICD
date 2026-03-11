@@ -1,9 +1,9 @@
 pipeline {
     agent {
-        kubernetes {
-            label 'buildah'
-            defaultContainer 'buildah'
-        }
+        // kubernetes {
+        //     label 'buildah'
+        //     defaultContainer 'buildah'
+        // }
     }
 
     environment {
