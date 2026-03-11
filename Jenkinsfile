@@ -26,7 +26,7 @@ pipeline {
         }
     }
     environment {
-        DOCKER_CREDS    = 'docker-hub-creds'
+        DOCKER_CREDS    = 'dockerhub-creds'
         IMAGE_TAG       = "${env.BUILD_NUMBER}"
         DEPLOYMENT_NAME = "${env.JOB_NAME.toLowerCase()}"
         CONTAINER_NAME  = "${env.JOB_NAME.toLowerCase()}"
