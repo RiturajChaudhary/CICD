@@ -1,4 +1,3 @@
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,6 +15,6 @@ spec:
     spec:
       containers:
       - name: nodejs
-        image: riturajchaudhary/cicd:13
+        image: riturajchaudhary/cicd:latest
         ports:
         - containerPort: 3000
