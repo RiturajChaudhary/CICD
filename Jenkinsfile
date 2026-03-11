@@ -24,9 +24,8 @@ pipeline {
         }
     }
     environment {
-        IMAGE_NAME      = "docker.io/${env.DOCKER_USERNAME}/${env.JOB_NAME.toLowerCase()}"
-        IMAGE_TAG       = "${env.BUILD_NUMBER}"
         DOCKER_CREDS    = 'dockerhub-creds'
+        IMAGE_TAG       = "${env.BUILD_NUMBER}"
         DEPLOYMENT_NAME = "${env.JOB_NAME.toLowerCase()}"
         CONTAINER_NAME  = "${env.JOB_NAME.toLowerCase()}"
     }
@@ -39,16 +38,18 @@ pipeline {
         stage('Build Image') {
             steps {
                 container('buildah') {
-                    sh 'buildah bud -t $IMAGE_NAME:$IMAGE_TAG .'
+                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDS}", usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                        sh 'buildah bud -t docker.io/$USER/${JOB_NAME,,}:$IMAGE_TAG .'
+                    }
                 }
             }
         }
         stage('Push Image') {
             steps {
                 container('buildah') {
-                    withCredentials([usernamePassword(credentialsId: "$DOCKER_CREDS", usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDS}", usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                         sh 'buildah login -u $USER -p $PASS docker.io'
-                        sh 'buildah push $IMAGE_NAME:$IMAGE_TAG'
+                        sh 'buildah push docker.io/$USER/${JOB_NAME,,}:$IMAGE_TAG'
                     }
                 }
             }
@@ -56,13 +57,16 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 container('kubectl') {
-                    sh '''
-                        if kubectl get deployment $DEPLOYMENT_NAME > /dev/null 2>&1; then
-                            kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=$IMAGE_NAME:$IMAGE_TAG
-                        else
-                            kubectl apply -f k8s/deployment.yaml
-                        fi
-                    '''
+                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDS}", usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                        sh '''
+                            IMAGE=docker.io/$USER/${JOB_NAME,,}:$IMAGE_TAG
+                            if kubectl get deployment $DEPLOYMENT_NAME > /dev/null 2>&1; then
+                                kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=$IMAGE
+                            else
+                                kubectl apply -f k8s/deployment.yaml
+                            fi
+                        '''
+                    }
                 }
             }
         }
