@@ -1,5 +1,28 @@
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            yaml '''
+                apiVersion: v1
+                kind: Pod
+                spec:
+                  containers:
+                  - name: buildah
+                    image: quay.io/buildah/stable:latest
+                    command:
+                    - sleep
+                    args:
+                    - 99d
+                    securityContext:
+                      privileged: true
+                  - name: kubectl
+                    image: bitnami/kubectl:latest
+                    command:
+                    - sleep
+                    args:
+                    - 99d
+            '''
+        }
+    }
     environment {
         IMAGE_NAME      = "docker.io/${env.DOCKER_USERNAME}/${env.JOB_NAME.toLowerCase()}"
         IMAGE_TAG       = "${env.BUILD_NUMBER}"
