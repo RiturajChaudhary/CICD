@@ -1,9 +1,8 @@
 pipeline {
-    // Use your already running buildah-agent pod
     agent {
         kubernetes {
-            label 'buildah-agent'   // Must match the label on the existing pod
-            defaultContainer 'jnlp' // The jnlp container inside the pod
+            label 'buildah-agent'   // must match your manually deployed pod's label
+            defaultContainer 'jnlp'
         }
     }
 
@@ -15,22 +14,9 @@ pipeline {
     }
 
     stages {
-
-        stage('Clean Workspace') {
-            steps {
-                deleteDir()
-            }
-        }
-
-        stage('Checkout') {
-            steps {
-                git branch: 'main', url: 'https://github.com/RiturajChaudhary/CICD.git'
-            }
-        }
-
         stage('Build Image') {
             steps {
-                container('buildah') {
+                container('buildah') { // this container exists in your manual pod
                     sh "buildah bud --layers -t $IMAGE_NAME:$IMAGE_TAG ."
                 }
             }
@@ -49,7 +35,7 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                container('kubectl') {
+                container('kubectl') { // this container exists in your manual pod
                     sh """
                         sed -i "s|\\\${IMAGE_TAG}|$IMAGE_TAG|" k8s/deployment.yaml
                         kubectl apply -f k8s/deployment.yaml -n $KUBE_NAMESPACE
@@ -59,18 +45,11 @@ pipeline {
                 }
             }
         }
-
     }
 
     post {
-        always {
-            echo "CI/CD pipeline finished for build ${BUILD_NUMBER}"
-        }
-        success {
-            echo "Build and deployment succeeded!"
-        }
-        failure {
-            echo "Build or deployment failed!"
-        }
+        always { echo "CI/CD pipeline finished for build ${BUILD_NUMBER}" }
+        success { echo "Build and deployment succeeded!" }
+        failure { echo "Build or deployment failed!" }
     }
 }
