@@ -1,19 +1,18 @@
 pipeline {
-    agent { label 'buildah-agent' }
-
+    agent any
     environment {
-        IMAGE_NAME = "rituraj4164/buildah-demo"
-        IMAGE_TAG = "${BUILD_NUMBER}"
-        DOCKER_CREDS = "dockerhub-creds"
+        IMAGE_NAME      = "docker.io/${env.DOCKER_USERNAME}/${env.JOB_NAME.toLowerCase()}"
+        IMAGE_TAG       = "${env.BUILD_NUMBER}"
+        DOCKER_CREDS    = 'docker-credentials-id'
+        DEPLOYMENT_NAME = "${env.JOB_NAME.toLowerCase()}"
+        CONTAINER_NAME  = "${env.JOB_NAME.toLowerCase()}"
     }
-
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/RiturajChaudhary/CICD.git'
+                git branch: 'main', url: 'https://github.com/RiturajChaudhary/CICD.git'
             }
         }
-
         stage('Build Image') {
             steps {
                 container('buildah') {
@@ -21,7 +20,6 @@ pipeline {
                 }
             }
         }
-
         stage('Push Image') {
             steps {
                 container('buildah') {
@@ -32,11 +30,16 @@ pipeline {
                 }
             }
         }
-
         stage('Deploy to Kubernetes') {
             steps {
                 container('kubectl') {
-                    sh 'kubectl apply -f k8s-deployment.yaml'
+                    sh '''
+                        if kubectl get deployment $DEPLOYMENT_NAME > /dev/null 2>&1; then
+                            kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=$IMAGE_NAME:$IMAGE_TAG
+                        else
+                            kubectl apply -f k8s/deployment.yaml
+                        fi
+                    '''
                 }
             }
         }
