@@ -62,10 +62,23 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDS}", usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                         sh '''
                             IMAGE=docker.io/$USER/${JOB_NAME,,}:$IMAGE_TAG
+
+                            # Deploy
                             if kubectl get deployment $DEPLOYMENT_NAME > /dev/null 2>&1; then
                                 kubectl set image deployment/$DEPLOYMENT_NAME $CONTAINER_NAME=$IMAGE
                             else
                                 kubectl apply -f k8s/deployment.yaml
+                            fi
+
+                            # Service
+                            if kubectl get service $SERVICE_NAME > /dev/null 2>&1; then
+                                echo "Service $SERVICE_NAME already exists, skipping..."
+                            else
+                                kubectl expose deployment $DEPLOYMENT_NAME \
+                                    --name=$SERVICE_NAME \
+                                    --type=NodePort \
+                                    --port=3000 \
+                                    --target-port=3000
                             fi
                         '''
                     }
