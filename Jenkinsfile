@@ -26,7 +26,7 @@ pipeline {
     environment {
         IMAGE_NAME      = "docker.io/${env.DOCKER_USERNAME}/${env.JOB_NAME.toLowerCase()}"
         IMAGE_TAG       = "${env.BUILD_NUMBER}"
-        DOCKER_CREDS    = 'docker-credentials-id'
+        DOCKER_CREDS    = 'dockerhub-creds'
         DEPLOYMENT_NAME = "${env.JOB_NAME.toLowerCase()}"
         CONTAINER_NAME  = "${env.JOB_NAME.toLowerCase()}"
     }
