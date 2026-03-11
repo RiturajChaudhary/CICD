@@ -20,11 +20,13 @@ pipeline {
                     - sleep
                     args:
                     - 99d
+                    securityContext:
+                      runAsUser: 0
             '''
         }
     }
     environment {
-        DOCKER_CREDS    = 'dockerhub-creds'
+        DOCKER_CREDS    = 'docker-hub-creds'
         IMAGE_TAG       = "${env.BUILD_NUMBER}"
         DEPLOYMENT_NAME = "${env.JOB_NAME.toLowerCase()}"
         CONTAINER_NAME  = "${env.JOB_NAME.toLowerCase()}"
