@@ -63,7 +63,6 @@ kubeconfig: Configured
 ### Useful Minikube Commands
 
 ```bash
-
 # Get Minikube IP
 minikube ip
 
@@ -112,7 +111,7 @@ kubectl describe svc jenkins --namespace jenkins
 kubectl port-forward svc/jenkins 8080:8080 --namespace jenkins
 ```
 
-> Jenkins is now accessible at **http://localhost:8080**  
+> Jenkins is now accessible at **http://localhost:8080**
 > Login: `admin` / `<password from above>`
 
 ---
@@ -185,28 +184,31 @@ Branch: */main
 Script Path: Jenkinsfile
 ```
 
-### Access the App
+---
+
+### 4.5 Access the App
 
 ```bash
 # Port-forward the service
 kubectl port-forward svc/nodejs-app-service 3000:80
-Once running, open the app at: [http://localhost:3000](http://localhost:3000)
 ```
----
 
+Once running, open the app at: [http://localhost:3000](http://localhost:3000)
+
+---
 
 ## 📁 Project Structure
 
 ```
-.
-├── README.md
-├── Jenkinsfile
+CICD/
+├── k8s/
+│   ├── deployment.yaml
+│   └── service.yaml
 ├── Dockerfile
-├── package.json
 ├── index.js
-└── k8s/
-    ├── deployment.yaml
-    └── service.yaml
+├── Jenkinsfile
+├── package.json
+└── README.md
 ```
 
 ---
