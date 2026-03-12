@@ -188,10 +188,11 @@ Script Path: Jenkinsfile
 ### Access the App
 
 ```bash
-# port-forward
+# Port-forward the service
 kubectl port-forward svc/nodejs-app-service 3000:80
-# Visit: http://localhost:3000
 ```
+Once running, open the app at: [http://localhost:3000](http://localhost:3000)
+---
 
 
 ## 📁 Project Structure
